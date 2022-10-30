@@ -1,0 +1,28 @@
+spring:
+  rabbitmq:
+    host: localhost
+    port: 5672
+    listener.simple:
+      concurrency: 1
+      prefetch: 1
+  datasource:
+    url: jdbc:postgresql://localhost:15432/akka_phone?createDatabaseIfNotExist=true
+    username: akka_phone
+    password: letmein
+  jpa:
+    show-sql: true
+  flyway:
+    baseline-on-migrate: true
+
+springdoc:
+  swagger-ui:
+    path: /docs
+    groups-order: asc
+    operations-sorter: method
+  api-docs:
+    path: /api-docs
+  use-fqn: true
+
+akka.cluster.system.name: PhoneBookingActorSystem
+
+fonoapi.key: <API IS UNAVAILABLE NOW>
