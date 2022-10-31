@@ -13,11 +13,13 @@ abstract class PhoneBookingCommand(
 
 class AddPhoneBookingCommand(
     phoneUuid: UUID,
-    personName: String
+    personName: String,
+    val replyTo: ActorRef<PhoneBookingState>
 ) : PhoneBookingCommand(phoneUuid, personName)
 
 class ReturnPhoneBookingCommand(
-    phoneUuid: UUID
+    phoneUuid: UUID,
+    val replyTo: ActorRef<PhoneBookingState>
 ) : PhoneBookingCommand(phoneUuid)
 
 class GetPhoneBookingCommand(

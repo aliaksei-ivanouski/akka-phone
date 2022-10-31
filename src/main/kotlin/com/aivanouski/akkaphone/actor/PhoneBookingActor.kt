@@ -76,26 +76,46 @@ class PhoneBookingActor(
 
     private fun bookPhone(command: AddPhoneBookingCommand): Effect<PhoneBookingEvent, PhoneBookingState> =
         AddPhoneBookingEvent(command.phoneUuid, command.personName!!, Instant.now()).let { event ->
-            phoneInfoRepository.findByIdOrNull(command.phoneUuid)
-                ?.also {
-                    it.status = BookingStatus.BOOKED
-                    it.whoBooked = command.personName
-                }
-                ?.also { phoneInfoRepository.save(it) }
             Effect()
                 .persist(event)
+                .thenRun<PhoneBookingState> { newState ->
+                    phoneInfoRepository.findByIdOrNull(command.phoneUuid)
+                        ?.also {
+                            it.status = BookingStatus.BOOKED
+                            it.whoBooked = command.personName
+                        }
+                        ?.also { phoneInfoRepository.save(it) }
+                        ?.also {
+                            newState.brand = it.brand
+                            newState.device = it.device
+                            newState.band = it.band
+                            newState.personName = it.whoBooked
+                            newState.time = it.updatedAt
+                        }
+                    command.replyTo.tell(newState)
+                }
         }
 
     private fun returnPhone(command: ReturnPhoneBookingCommand): Effect<PhoneBookingEvent, PhoneBookingState> =
         ReturnPhoneBookingEvent(command.phoneUuid, Instant.now()).let { event ->
-            phoneInfoRepository.findByIdOrNull(command.phoneUuid)
-                ?.also {
-                    it.status = BookingStatus.AVAILABLE
-                    it.whoBooked = null
-                }
-                ?.also { phoneInfoRepository.save(it) }
             Effect()
                 .persist(event)
+                .thenRun<PhoneBookingState> { newState ->
+                    phoneInfoRepository.findByIdOrNull(command.phoneUuid)
+                        ?.also {
+                            it.status = BookingStatus.AVAILABLE
+                            it.whoBooked = null
+                        }
+                        ?.also { phoneInfoRepository.save(it) }
+                        ?.also {
+                            newState.brand = it.brand
+                            newState.device = it.device
+                            newState.band = it.band
+                            newState.personName = it.whoBooked
+                            newState.time = it.updatedAt
+                        }
+                    command.replyTo.tell(newState)
+                }
         }
 
     private fun getState(command: GetPhoneBookingCommand): Effect<PhoneBookingEvent, PhoneBookingState> =

@@ -13,7 +13,7 @@ import java.util.UUID
 import java.util.concurrent.CompletionStage
 
 interface PhoneBookingService {
-    fun applyPhoneBookingAction(action: PhoneBookingActionMessage)
+    suspend fun applyPhoneBookingAction(action: PhoneBookingActionMessage): PhoneBookingState
     suspend fun getPhoneInfo(phoneUuid: UUID): PhoneBookingState
     suspend fun getAllPhonesInfo(phoneUuids: List<UUID>): List<PhoneBookingState>
 }
@@ -28,12 +28,22 @@ class DefaultPhoneBookingService(
 
     private val askDuration = Duration.ofSeconds(props.askTimeoutSeconds)
 
-    override fun applyPhoneBookingAction(action: PhoneBookingActionMessage) = when (action.actionType) {
-        PhoneBookingActionType.BOOK -> action.phoneUuid.toString().entityRef()
-            .tell(AddPhoneBookingCommand(action.phoneUuid, action.personName!!))
-        PhoneBookingActionType.RETURN -> action.phoneUuid.toString().entityRef()
-            .tell(ReturnPhoneBookingCommand(action.phoneUuid))
-    }.also { logger.info("Phone booking action, action type: ${action.actionType}") }
+    override suspend fun applyPhoneBookingAction(action: PhoneBookingActionMessage): PhoneBookingState = when (action.actionType) {
+        PhoneBookingActionType.BOOK -> arrayListOf(action.phoneUuid)
+            .map<UUID, CompletionStage<PhoneBookingState>> { imei ->
+                imei.toString().entityRef()
+                    .ask({ replyTo -> AddPhoneBookingCommand(imei, action.personName!!, replyTo) }, askDuration)
+            }
+        PhoneBookingActionType.RETURN -> arrayListOf(action.phoneUuid)
+            .map<UUID, CompletionStage<PhoneBookingState>> { imei ->
+                imei.toString().entityRef()
+                    .ask({ replyTo -> ReturnPhoneBookingCommand(imei, replyTo) }, askDuration)
+            }
+    }
+        .map { it.toCompletableFuture() }
+        .map { it.toMono().awaitSingle() }
+        .first()
+        .also { logger.info("Phone booking action, action type: ${action.actionType}") }
 
     override suspend fun getPhoneInfo(phoneUuid: UUID): PhoneBookingState = arrayListOf(phoneUuid)
         .also { logger.info("Get phone info, IMEI: $phoneUuid") }

@@ -14,7 +14,7 @@ class RabbitMqListener(
 ) {
 
     @RabbitListener(queues = [RabbitMqConfig.QUEUE])
-    fun listen(messagePayload: String) {
+    suspend fun listen(messagePayload: String) {
         messagePayload.parseToPhoneBookingActionMessage().also { phoneBookingService.applyPhoneBookingAction(it) }
     }
 
