@@ -5,6 +5,7 @@ import com.aivanouski.akkaphone.LoggerDelegate
 import com.aivanouski.akkaphone.message.PhoneBookingActionMessage
 import com.aivanouski.akkaphone.message.PhoneBookingActionType
 import com.aivanouski.akkaphone.props.EventSourcingProperties
+import com.aivanouski.akkaphone.state.AbstractBaseState
 import kotlinx.coroutines.reactor.awaitSingle
 import org.springframework.stereotype.Service
 import reactor.kotlin.core.publisher.toMono
@@ -13,9 +14,9 @@ import java.util.UUID
 import java.util.concurrent.CompletionStage
 
 interface PhoneBookingService {
-    suspend fun applyPhoneBookingAction(action: PhoneBookingActionMessage): PhoneBookingState
-    suspend fun getPhoneInfo(phoneUuid: UUID): PhoneBookingState
-    suspend fun getAllPhonesInfo(phoneUuids: List<UUID>): List<PhoneBookingState>
+    suspend fun applyPhoneBookingAction(action: PhoneBookingActionMessage): AbstractBaseState
+    suspend fun getPhoneInfo(phoneUuid: UUID): AbstractBaseState
+    suspend fun getAllPhonesInfo(phoneUuids: List<UUID>): List<AbstractBaseState>
 }
 
 @Service
@@ -28,14 +29,14 @@ class DefaultPhoneBookingService(
 
     private val askDuration = Duration.ofSeconds(props.askTimeoutSeconds)
 
-    override suspend fun applyPhoneBookingAction(action: PhoneBookingActionMessage): PhoneBookingState = when (action.actionType) {
+    override suspend fun applyPhoneBookingAction(action: PhoneBookingActionMessage): AbstractBaseState = when (action.actionType) {
         PhoneBookingActionType.BOOK -> arrayListOf(action.phoneUuid)
-            .map<UUID, CompletionStage<PhoneBookingState>> { imei ->
+            .map<UUID, CompletionStage<AbstractBaseState>> { imei ->
                 imei.toString().entityRef()
                     .ask({ replyTo -> AddPhoneBookingCommand(imei, action.personName!!, replyTo) }, askDuration)
             }
         PhoneBookingActionType.RETURN -> arrayListOf(action.phoneUuid)
-            .map<UUID, CompletionStage<PhoneBookingState>> { imei ->
+            .map<UUID, CompletionStage<AbstractBaseState>> { imei ->
                 imei.toString().entityRef()
                     .ask({ replyTo -> ReturnPhoneBookingCommand(imei, replyTo) }, askDuration)
             }
@@ -45,9 +46,9 @@ class DefaultPhoneBookingService(
         .first()
         .also { logger.info("Phone booking action, action type: ${action.actionType}") }
 
-    override suspend fun getPhoneInfo(phoneUuid: UUID): PhoneBookingState = arrayListOf(phoneUuid)
+    override suspend fun getPhoneInfo(phoneUuid: UUID): AbstractBaseState = arrayListOf(phoneUuid)
         .also { logger.info("Get phone info, IMEI: $phoneUuid") }
-        .map<UUID, CompletionStage<PhoneBookingState>> { imei ->
+        .map<UUID, CompletionStage<AbstractBaseState>> { imei ->
             phoneUuid.toString().entityRef()
                 .ask({ replyTo -> GetPhoneBookingCommand(imei, replyTo) }, askDuration)
         }
@@ -55,9 +56,9 @@ class DefaultPhoneBookingService(
         .map { it.toMono().awaitSingle() }
         .first()
 
-    override suspend fun getAllPhonesInfo(phoneUuids: List<UUID>): List<PhoneBookingState> = phoneUuids
+    override suspend fun getAllPhonesInfo(phoneUuids: List<UUID>): List<AbstractBaseState> = phoneUuids
         .also { logger.info("Get all phone infos, IMEIs: $phoneUuids") }
-        .map<UUID, CompletionStage<PhoneBookingState>> { phoneUuid ->
+        .map<UUID, CompletionStage<AbstractBaseState>> { phoneUuid ->
             phoneUuid.toString().entityRef()
                 .ask({ replyTo -> GetPhoneBookingCommand(phoneUuid, replyTo) }, askDuration)
         }

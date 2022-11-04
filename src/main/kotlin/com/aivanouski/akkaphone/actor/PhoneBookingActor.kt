@@ -12,6 +12,8 @@ import akka.persistence.typed.javadsl.EventHandler
 import akka.persistence.typed.javadsl.EventSourcedBehavior
 import akka.persistence.typed.javadsl.RetentionCriteria
 import akka.persistence.typed.javadsl.SnapshotCountRetentionCriteria
+import com.aivanouski.akkaphone.error.ErrorCode
+import com.aivanouski.akkaphone.error.ErrorState
 import com.aivanouski.akkaphone.fonoapi.FonoAPIClient
 import com.aivanouski.akkaphone.phone.PhoneInfoRepository
 import com.aivanouski.akkaphone.props.EventSourcingProperties
@@ -74,66 +76,103 @@ class PhoneBookingActor(
             .onCommand(GetPhoneBookingCommand::class.java, this::getState)
             .build()
 
+
     private fun bookPhone(command: AddPhoneBookingCommand): Effect<PhoneBookingEvent, PhoneBookingState> =
         AddPhoneBookingEvent(command.phoneUuid, command.personName!!, Instant.now()).let { event ->
-            Effect()
-                .persist(event)
-                .thenRun<PhoneBookingState> { newState ->
-                    phoneInfoRepository.findByIdOrNull(command.phoneUuid)
-                        ?.also {
-                            it.status = BookingStatus.BOOKED
-                            it.whoBooked = command.personName
-                        }
-                        ?.also { phoneInfoRepository.save(it) }
-                        ?.also {
-                            newState.brand = it.brand
-                            newState.device = it.device
-                            newState.band = it.band
-                            newState.personName = it.whoBooked
-                            newState.time = it.updatedAt
-                        }
-                    command.replyTo.tell(newState)
+            val phoneInfo = phoneInfoRepository.findByIdOrNull(command.phoneUuid)
+            if (phoneInfo == null) {
+                command.replyTo.tell(
+                    ErrorState("${command.phoneUuid}", ErrorCode.NOT_FOUND)
+                )
+                Effect().unhandled()
+            } else {
+                when (phoneInfo.status) {
+                    BookingStatus.BOOKED -> {
+                        command.replyTo.tell(
+                            ErrorState("${command.phoneUuid}", ErrorCode.ALREADY_BOOKED)
+                        )
+                        Effect().unhandled()
+                    }
+
+                    else -> {
+                        phoneInfo.status = BookingStatus.BOOKED
+                        phoneInfo.whoBooked = command.personName
+                        phoneInfoRepository.save(phoneInfo)
+                        Effect()
+                            .persist(event)
+                            .thenRun<PhoneBookingState> { newState ->
+                                newState.brand = phoneInfo.brand
+                                newState.device = phoneInfo.device
+                                newState.band = phoneInfo.band
+                                newState.personName = phoneInfo.whoBooked
+                                newState.time = phoneInfo.updatedAt
+
+                                command.replyTo.tell(newState)
+                            }
+                    }
                 }
+            }
         }
 
     private fun returnPhone(command: ReturnPhoneBookingCommand): Effect<PhoneBookingEvent, PhoneBookingState> =
         ReturnPhoneBookingEvent(command.phoneUuid, Instant.now()).let { event ->
-            Effect()
-                .persist(event)
+            val phoneInfo = phoneInfoRepository.findByIdOrNull(command.phoneUuid)
+            if (phoneInfo == null) {
+                command.replyTo.tell(
+                    ErrorState("${command.phoneUuid}", ErrorCode.NOT_FOUND)
+                )
+                Effect().unhandled()
+            } else {
+                when (phoneInfo.status) {
+                    BookingStatus.AVAILABLE -> {
+                        command.replyTo.tell(
+                            ErrorState("${command.phoneUuid}", ErrorCode.ALREADY_AVAILABLE)
+                        )
+                        Effect().unhandled()
+                    }
+
+                    else -> {
+                        phoneInfo.status = BookingStatus.AVAILABLE
+                        phoneInfo.whoBooked = null
+                        phoneInfoRepository.save(phoneInfo)
+                        Effect()
+                            .persist(event)
+                            .thenRun<PhoneBookingState> { newState ->
+                                newState.brand = phoneInfo.brand
+                                newState.device = phoneInfo.device
+                                newState.band = phoneInfo.band
+                                newState.personName = phoneInfo.whoBooked
+                                newState.time = phoneInfo.updatedAt
+
+                                command.replyTo.tell(newState)
+                            }
+                    }
+                }
+            }
+        }
+
+    private fun getState(command: GetPhoneBookingCommand): Effect<PhoneBookingEvent, PhoneBookingState> {
+        val phoneInfo = phoneInfoRepository.findByIdOrNull(UUID.fromString(phoneUuid))
+        if (phoneInfo == null) {
+            command.replyTo.tell(
+                ErrorState("${command.phoneUuid}", ErrorCode.NOT_FOUND)
+            )
+            return Effect().unhandled()
+        } else {
+            return Effect()
+                .none()
                 .thenRun<PhoneBookingState> { newState ->
-                    phoneInfoRepository.findByIdOrNull(command.phoneUuid)
-                        ?.also {
-                            it.status = BookingStatus.AVAILABLE
-                            it.whoBooked = null
-                        }
-                        ?.also { phoneInfoRepository.save(it) }
-                        ?.also {
-                            newState.brand = it.brand
-                            newState.device = it.device
-                            newState.band = it.band
-                            newState.personName = it.whoBooked
-                            newState.time = it.updatedAt
-                        }
+                    newState.brand = phoneInfo.brand
+                    newState.device = phoneInfo.device
+                    newState.band = phoneInfo.band
+                    newState.personName = phoneInfo.whoBooked
+                    newState.time = phoneInfo.updatedAt
+
+                    fonoAPIClient.getPhoneInfo(phoneInfo.brand, phoneInfo.device)
+                        ?.also { response -> newState.fonoInfo = response }
+
                     command.replyTo.tell(newState)
                 }
         }
-
-    private fun getState(command: GetPhoneBookingCommand): Effect<PhoneBookingEvent, PhoneBookingState> =
-        Effect()
-            .none()
-            .thenRun<PhoneBookingState> { newState ->
-                phoneInfoRepository.findByIdOrNull(UUID.fromString(phoneUuid))
-                    ?.also {
-                        newState.brand = it.brand
-                        newState.device = it.device
-                        newState.band = it.band
-                        newState.personName = it.whoBooked
-                        newState.time = it.updatedAt
-                    }
-                    ?.also {
-                        fonoAPIClient.getPhoneInfo(it.brand, it.device)
-                            .also { response -> newState.fonoInfo = response }
-                    }
-                command.replyTo.tell(newState)
-            }
+    }
 }

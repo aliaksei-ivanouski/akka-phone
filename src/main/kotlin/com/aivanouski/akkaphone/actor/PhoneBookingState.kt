@@ -1,5 +1,6 @@
 package com.aivanouski.akkaphone.actor
 
+import com.aivanouski.akkaphone.state.AbstractBaseState
 import com.aivanouski.akkaphone.serialization.AkkaSerializable
 import com.fasterxml.jackson.databind.JsonNode
 import java.time.Instant
@@ -13,4 +14,4 @@ data class PhoneBookingState(
     var time: Instant? = null,
     var status: BookingStatus = BookingStatus.AVAILABLE,
     var fonoInfo: JsonNode? = null
-) : AkkaSerializable
+) : AbstractBaseState(imei), AkkaSerializable
