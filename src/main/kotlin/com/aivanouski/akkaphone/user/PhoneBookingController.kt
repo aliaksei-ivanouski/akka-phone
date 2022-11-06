@@ -4,6 +4,7 @@ import com.aivanouski.akkaphone.LoggerDelegate
 import com.aivanouski.akkaphone.actor.PhoneBookingService
 import com.aivanouski.akkaphone.message.PhoneBookingActionMessage
 import com.aivanouski.akkaphone.message.PhoneBookingActionType
+import io.micrometer.core.annotation.Timed
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
@@ -21,6 +22,7 @@ class PhoneBookingController(
     private val logger by LoggerDelegate()
 
     @PostMapping("/book-phone")
+    @Timed
     suspend fun bookPhone(
         @Valid @RequestBody payload: BookPhonePayload
     ) = phoneBookingService.applyPhoneBookingAction(
@@ -33,6 +35,7 @@ class PhoneBookingController(
         .also { logger.info("Booking phone ${payload.imei} by ${payload.personName}") }
 
     @PostMapping("/return-phone")
+    @Timed
     suspend fun returnPhone(
         @Valid @RequestBody payload: ReturnPhonePayload
     ) = phoneBookingService.applyPhoneBookingAction(

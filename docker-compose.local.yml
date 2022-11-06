@@ -13,6 +13,10 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+#      prometheus:
+#        condition: service_healthy
+      grafana:
+        condition: service_healthy
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/akka_phone?createDatabaseIfNotExist=true
       - SPRING_DATASOURCE_USERNAME=akka_phone
@@ -60,7 +64,7 @@ services:
     image: redis:alpine
     container_name: 'redis'
     ports:
-      - 16379:6379
+      - '16379:6379'
     healthcheck:
       test: [ "CMD-SHELL", "redis-cli", "ping"]
       interval: 2s
@@ -68,6 +72,46 @@ services:
       retries: 15
     volumes:
       - ./_redis:/data
+    networks:
+      - akka-phone
+
+  prometheus:
+    image: prom/prometheus:v2.30.3
+    network_mode: host
+    container_name: prometheus
+    restart: unless-stopped
+    ports:
+      - 9090:9090
+    volumes:
+      - ./src/main/resources/prometheus:/etc/prometheus/
+      - ./_prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    labels:
+      org.label-schema.group: "monitoring"
+    networks:
+      - akka-phone
+
+  grafana:
+    image: grafana/grafana-oss:8.5.2
+    pull_policy: always
+    network_mode: host
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      - '3000:3000'
+    links:
+      - prometheus:prometheus
+    volumes:
+      - ./_grafana-data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SERVER_DOMAIN=localhost
     networks:
       - akka-phone
 

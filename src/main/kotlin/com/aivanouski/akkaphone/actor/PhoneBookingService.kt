@@ -6,6 +6,7 @@ import com.aivanouski.akkaphone.message.PhoneBookingActionMessage
 import com.aivanouski.akkaphone.message.PhoneBookingActionType
 import com.aivanouski.akkaphone.props.EventSourcingProperties
 import com.aivanouski.akkaphone.state.AbstractBaseState
+import io.micrometer.core.annotation.Timed
 import kotlinx.coroutines.reactor.awaitSingle
 import org.springframework.stereotype.Service
 import reactor.kotlin.core.publisher.toMono
@@ -29,6 +30,7 @@ class DefaultPhoneBookingService(
 
     private val askDuration = Duration.ofSeconds(props.askTimeoutSeconds)
 
+    @Timed
     override suspend fun applyPhoneBookingAction(action: PhoneBookingActionMessage): AbstractBaseState = when (action.actionType) {
         PhoneBookingActionType.BOOK -> arrayListOf(action.phoneUuid)
             .map<UUID, CompletionStage<AbstractBaseState>> { imei ->
@@ -46,6 +48,7 @@ class DefaultPhoneBookingService(
         .first()
         .also { logger.info("Phone booking action, action type: ${action.actionType}") }
 
+    @Timed
     override suspend fun getPhoneInfo(phoneUuid: UUID): AbstractBaseState = arrayListOf(phoneUuid)
         .also { logger.info("Get phone info, IMEI: $phoneUuid") }
         .map<UUID, CompletionStage<AbstractBaseState>> { imei ->
@@ -56,6 +59,7 @@ class DefaultPhoneBookingService(
         .map { it.toMono().awaitSingle() }
         .first()
 
+    @Timed
     override suspend fun getAllPhonesInfo(phoneUuids: List<UUID>): List<AbstractBaseState> = phoneUuids
         .also { logger.info("Get all phone infos, IMEIs: $phoneUuids") }
         .map<UUID, CompletionStage<AbstractBaseState>> { phoneUuid ->

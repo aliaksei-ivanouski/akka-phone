@@ -1,0 +1,6 @@
+groups:
+  - name: Akka Phone App Alerts
+    rules:
+      - alert: InstanceDown
+        expr: up{job="Akka Phone App"} < 1
+        for: 1m

@@ -16,6 +16,8 @@ val akkaManagementVersion = "1.1.1"
 val postgresDriverVersion = "42.2.26"
 val flywayVersion = "9.6.0"
 val swaggerVersion = "1.6.12"
+val actuatorVersion = "2.7.4"
+val micrometrVersion = "1.9.5"
 
 
 group = "com.aivanouski"
@@ -48,6 +50,11 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-amqp")
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
+    implementation("org.springframework.boot:spring-boot-starter-aop")
+
+    implementation("org.springframework.boot:spring-boot-starter-actuator:$actuatorVersion")
+    implementation("io.micrometer:micrometer-registry-prometheus:$micrometrVersion")
+
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
     implementation("io.projectreactor.kotlin:reactor-kotlin-extensions")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
