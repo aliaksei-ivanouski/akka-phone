@@ -40,3 +40,5 @@ out/
 _db/
 _rabbitmq-data/
 _redis/
+_grafana-data/
+_prometheus-data/

@@ -23,6 +23,12 @@ springdoc:
     path: /api-docs
   use-fqn: true
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: ['health', 'metrics', 'prometheus']
+
 akka.cluster.system.name: PhoneBookingActorSystem
 
 fonoapi.key: <API IS UNAVAILABLE NOW>

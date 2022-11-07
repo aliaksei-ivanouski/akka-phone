@@ -43,7 +43,7 @@ def main():
     ]
     person_names = ['Alex', 'Peter', 'Tom', 'Julia']
 
-    for j in range(100):
+    for j in range(1000):
         phone = random.choice(phones)
         person = random.choice(person_names)
         for i in range(10):

@@ -2,6 +2,7 @@ package com.aivanouski.akkaphone.user
 
 import com.aivanouski.akkaphone.LoggerDelegate
 import com.aivanouski.akkaphone.web.Success
+import io.micrometer.core.annotation.Timed
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
@@ -20,6 +21,7 @@ class PhoneBookingController(
     private val logger by LoggerDelegate()
 
     @PostMapping("/book-phone")
+    @Timed
     fun bookPhone(
         @Valid @RequestBody payload: BookPhonePayload
     ): Mono<Success> {
@@ -32,6 +34,7 @@ class PhoneBookingController(
     }
 
     @PostMapping("/return-phone")
+    @Timed
     fun returnPhone(
         @Valid @RequestBody payload: ReturnPhonePayload
     ): Mono<Success> {
